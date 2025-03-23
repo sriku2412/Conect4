@@ -8,31 +8,44 @@ from collections import deque
 from utils.config import ROW_COUNT, COLUMN_COUNT
 import os
 
-
 class DQN(nn.Module):
-    def __init__(self, model_size="default"):
+    def __init__(self, model_size="default", dueling=False):
         super(DQN, self).__init__()
+        self.dueling = dueling
+        input_dim = ROW_COUNT * COLUMN_COUNT
         if model_size == "large":
-            self.fc1 = nn.Linear(ROW_COUNT * COLUMN_COUNT, 512)
-            self.fc2 = nn.Linear(512, 256)
-            self.fc3 = nn.Linear(256, COLUMN_COUNT)
+            hidden1, hidden2 = 512, 256
         else:
-            self.fc1 = nn.Linear(ROW_COUNT * COLUMN_COUNT, 256)
-            self.fc2 = nn.Linear(256, 128)
-            self.fc3 = nn.Linear(128, COLUMN_COUNT)
+            hidden1, hidden2 = 256, 128
+
+        self.fc1 = nn.Linear(input_dim, hidden1)
+        self.fc2 = nn.Linear(hidden1, hidden2)
+
+        if dueling:
+            self.value_stream = nn.Linear(hidden2, 1)
+            self.advantage_stream = nn.Linear(hidden2, COLUMN_COUNT)
+        else:
+            self.fc3 = nn.Linear(hidden2, COLUMN_COUNT)
 
     def forward(self, x):
         x = x.view(-1, ROW_COUNT * COLUMN_COUNT)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        return self.fc3(x)
+
+        if self.dueling:
+            value = self.value_stream(x)
+            advantage = self.advantage_stream(x)
+            return value + (advantage - advantage.mean(dim=1, keepdim=True))
+        else:
+            return self.fc3(x)
 
 
 class DQNAgent:
     def __init__(self, gamma=0.95, lr=0.001, batch_size=64, memory_size=10000, 
-                 model_size="default", use_double_dqn=False):
-        self.model = DQN(model_size=model_size)
-        self.target_model = DQN(model_size=model_size)
+                 model_size="default", use_double_dqn=False, use_dueling_dqn=True):
+
+        self.model = DQN(model_size=model_size, dueling=use_dueling_dqn)
+        self.target_model = DQN(model_size=model_size, dueling=use_dueling_dqn)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
         self.memory = deque(maxlen=memory_size)

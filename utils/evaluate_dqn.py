@@ -14,7 +14,6 @@ def plot_q_values(agent, board: Board):
     with torch.no_grad():
         q_values = agent.model(state_tensor).squeeze().numpy()
 
-    # Mask invalid actions with NaN
     valid_actions = [c for c in range(COLUMN_COUNT) if board.is_valid_location(c)]
     q_masked = np.full_like(q_values, np.nan)
     for c in valid_actions:
@@ -86,6 +85,6 @@ def plot_results(results):
     plt.show()
 
 if __name__ == "__main__":
-    agent = DQNAgent()
+    agent = DQNAgent(model_size='large', use_double_dqn=True, use_dueling_dqn=True)
     agent.load("utils/dqn_model.pth")
     evaluate(agent, episodes=100)

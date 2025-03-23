@@ -3,7 +3,7 @@ import numpy as np
 import random
 from utils.game_engine import Board
 from utils.dqn_agent import DQNAgent
-from utils.config import COLUMN_COUNT
+from utils.config import COLUMN_COUNT, ROW_COUNT
 import os
 
 
@@ -21,7 +21,7 @@ def opponent_wins_next(board, current_player):
 
 
 def train(episodes=50000, checkpoint_interval=5000):
-    agent = DQNAgent(model_size='large', use_double_dqn=True)
+    agent = DQNAgent(model_size='large', use_double_dqn=True, use_dueling_dqn=True)
     epsilon = 1.0
     epsilon_decay = 0.9997
     min_epsilon = 0.05
@@ -40,13 +40,15 @@ def train(episodes=50000, checkpoint_interval=5000):
             board.drop_piece(row, action, current_player)
 
             next_state = board.grid.reshape(-1)
-            reward = -0.01  # Default step penalty
+            reward = -0.01  
 
             if board.winning_move(current_player):
-                reward = 1.0
+                reward = 1.0 + (0.01 * (ROW_COUNT * COLUMN_COUNT - np.count_nonzero(board.grid))) 
+
                 done = True
-            elif opponent_wins_next(board, current_player):
-                reward = -1.0
+            elif opponent_wins_next(board, 3 - current_player):
+                reward = 0.7 
+
             elif not any(board.grid[-1][c] == 0 for c in range(COLUMN_COUNT)):
                 reward = 0.3
                 done = True
